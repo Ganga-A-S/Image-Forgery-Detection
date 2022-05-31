@@ -14,7 +14,7 @@ from keras.models import Model
 from keras.initializers import Constant
 from keras.constraints import Constraint
 from keras import backend as K
-from keras.layers.convolutional import _Conv
+from keras.layers.convolutional import Conv
 from keras.legacy import interfaces
 from keras.engine import InputSpec
 import tensorflow as tf
