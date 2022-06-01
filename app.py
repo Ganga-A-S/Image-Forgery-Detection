@@ -69,6 +69,6 @@ def base():
             _, outputBuffer = cv2.imencode('.jpg', output)
             OutputBase64String = base64.b64encode(outputBuffer).decode('utf-8')
             return render_template("base.html", img=OutputBase64String, output=1)
-            
-    if __name__ == '__main__':
+        
+if __name__ == '__main__':
     app.run()
