@@ -8,28 +8,39 @@ from flask import Flask, redirect, request, render_template
 import matplotlib.pyplot as plt
 import base64
 import os
-
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
 app = Flask(__name__)
+cors = CORS(app, resources={r"/foo": {"origins": "http://localhost:port"}})
 
-def decode_an_image_array(rgb, dn=1):
-    x = np.expand_dims(rgb.astype('float32') / 255. * 2 - 1, axis=0)[:, ::dn, ::dn]
-    K.clear_session()
-    manTraNet = modelCore.load_trained_model()
-    return manTraNet.predict(x)[0, ..., 0]
+#Load ManTraNet
+manTraNet_root = 'ManTraNet/'
+manTraNet_srcDir = os.path.join( manTraNet_root, 'src' )
+sys.path.insert( 0, manTraNet_srcDir )
+manTraNet_modelDir = os.path.join( manTraNet_root, 'pretrained_weights' )
 
+from ManTraNet.src import modelCore
+model_mantra = modelCore.load_pretrain_model_by_index( 4, manTraNet_modelDir )
 
-def decode_an_image_file(image_file, dn=1):
-    mask = decode_an_image_array(image_file, dn)
-    plt.xticks([])
-    plt.yticks([])
-    plt.imshow(image_file[::dn, ::dn])
-    plt.imshow(mask, cmap='jet', alpha=.5)
-    plt.savefig('h.png', bbox_inches='tight', pad_inches=-0.1)
+def read_rgb_image( image_file ) :
+    rgb = cv2.imread( image_file, 1 )[...,::-1]
+    return rgb
+    
+def decode_an_image_array( rgb, manTraNet ) :
+    x = np.expand_dims( rgb.astype('float32')/255.*2-1, axis=0 )
+    t0 = datetime.now()
+    with graph.as_default():
+        y = manTraNet.predict(x)[0,...,0]
+    t1 = datetime.now()
+    return y, t1-t0
 
-
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
+def decode_an_image_file( image_file, manTraNet ) :
+    rgb = read_rgb_image( image_file )
+    rgb = cv2.resize(rgb, dsize=(640,480), interpolation=cv2.INTER_CUBIC)
+    mask, ptime = decode_an_image_array( rgb, manTraNet )
+    return rgb, mask, ptime.total_seconds()
+    
+    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
 
 def allowed_file(filename):
     return '.' in filename and \
@@ -58,9 +69,6 @@ def base():
             _, outputBuffer = cv2.imencode('.jpg', output)
             OutputBase64String = base64.b64encode(outputBuffer).decode('utf-8')
             return render_template("base.html", img=OutputBase64String, output=1)
-
-
-if __name__ == "__main__":
-    app.secret_key = 'qwertyuiop1234567890'
-    port = int(os.environ.get('PORT', 5000))
-    app.run(debug=True, host='0.0.0.0', port=port)
+            
+    if __name__ == '__main__':
+    app.run()
